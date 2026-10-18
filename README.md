@@ -1,14 +1,101 @@
 # 求职工作台
 
-个人自用的求职工作台：把岗位 JD、简历、项目源码与模拟面试串成一条可追溯的流水线。当前完成 **M0–M6**（骨架、岗位库、简历库、生成简历、简历评价、项目导学、模拟面试）。
+个人自用的求职工作台：把岗位 JD、简历、项目源码与模拟面试串成一条可追溯的流水线。当前完成 **M0–M6**。
+
+它不是一个"接了大模型的 CRUD 后台"。所有智能能力都跑在同一套自研 **agent harness** 上：每次执行都是一个可回放、可取消、可审计的 Run——模型轮次、工具调用、上下文装配、提示词版本、token 与事件全部落库。业务代码只写 handler，不直接调模型、不自己管状态。
 
 ## 技术栈
 
 - 前端：Vue 3 + TypeScript + Vite + Naive UI + Pinia
-- 后端：FastAPI + SQLAlchemy 2.0 async + Pydantic v2 + OpenAI Agents SDK 兼容层
+- 后端：FastAPI + SQLAlchemy 2.0 async + Pydantic v2 + 自研 agent harness
 - 任务：Celery + Redis（Redis 跑 Docker，API 与 worker 都跑 Windows 原生进程）
 - 存储：SQLite（WAL）+ 本地文件
-- 模型：阿里云百炼 `qwen3.8-flash`（OpenAI 兼容模式）
+- 模型：OpenAI 兼容 Chat Completions（`openai` SDK），默认阿里云百炼 `qwen3.8-flash`
+
+## Harness：一个执行入口，六道边界
+
+```
+前端 / HTTP
+   │  POST /api/runs  ·  POST /api/chat/sessions/{id}/turns
+   ▼
+FastAPI ──enqueue──► Celery（celery 队列＝业务 agent，chat 队列＝对话轮次）
+                          │
+                          ▼
+                   execute_run()          ← 唯一执行入口，状态迁移只在这里发生
+                          │
+                    RunExecutor / RunHandle
+            ┌─────────────┼──────────────┬──────────────┐
+            ▼             ▼              ▼              ▼
+        LLMClient    ToolRegistry   ContextBudget   Prompt(版本化)
+            │             │              │              │
+            └────────► run_steps ──► run_events ──► SQLite
+                                                      │
+                                               Redis pub/sub
+                                                      │
+                                             SSE（Last-Event-ID 补历史）
+```
+
+| 边界 | 做法 |
+|---|---|
+| **状态** | `runs` 状态机在库里；worker 重启把遗留 `running` 标为 `interrupted`，不假装续跑 |
+| **模型** | 业务代码只能调 `RunHandle.call_model()` / `.step()`，不能直接 new 客户端 |
+| **工具** | 全部注册进 `ToolRegistry`；入参 Pydantic 校验、超时、路径白名单、风险分级都在这一层 |
+| **上下文** | `ContextBudget` 显式估算 token、按优先级装入、截断或丢弃并记录原因 |
+| **预算** | 每次调用累加 token，超 `budget_tokens` 抛 `BudgetExceeded`；取消标志逐轮检查 |
+| **可观测** | 每个模型轮次记 `run_steps`（请求、响应、token、延迟、`prompt@hash`、错误） |
+
+## Agent 拓扑
+
+所有 agent 都是同一套 handler 签名 `async def handler(handle: RunHandle) -> dict`，通过 `@register(kind)` 注册：
+
+| 层 | Agent | 做什么 |
+|---|---|---|
+| 业务 Run | `parse_job` | 原始 JD → 结构化岗位，只回填原文明确出现的字段 |
+| | `extract_claims` | 导入简历 → 候选证据条目 |
+| | `generate_resume` | 只拿已确认证据，重组 `resume.json`，不新增事实 |
+| | `evaluate_resume` | **4 个 critic 并行**（岗位匹配/成果量化/技术深度/表达），各看各的维度 |
+| | `scan_project` | **scout → 按模块并行 reader → synthesizer**，reader 之间上下文隔离 |
+| | `project_guide` | 只基于项目证据生成导学与面试问答 |
+| | `interview_plan / score / report` | planner 定契约、interviewer 出题不评分、evaluator 只看单题 |
+| 对话 Run | `chat` | 独立队列；一轮用户消息 = 一个 Run；工具由自己调度、执行前拦截风险 |
+| 嵌套子 agent | `investigate` | 同 Run 内的只读调查，独立上下文、只回结论、最多 6 轮 |
+| | critics / readers | 共用 `RunHandle`：网络并发，库写由 `asyncio.Lock` 串行 |
+
+关键点：并行只发生在**模型调用**上。SQLite 单写者，所有 agent 共用一个 `AsyncSession`，写操作走 `RunHandle` 内部的锁；单个 critic / reader 失败只污染自己那段结果，不拖垮整个 Run。
+
+## 工具层：契约先于能力
+
+模型只能输出 JSON 入参，其余由 `ToolRegistry` 强制：
+
+| 风险 | 行为 |
+|---|---|
+| `read` | 直接执行；同一轮内相同工具+参数**记忆化**，避免模型原地打转 |
+| `write` | 直接执行并回显结果 |
+| `destructive` | 不执行，返回 `pending_confirmation`，生成确认卡 |
+| `slow` | 立即返回 `run_id`，作为子 Run 挂到本轮（`parent_run_id`），不阻塞回答 |
+
+- **路径白名单在工具层校验**，不看模型怎么说；项目扫描只读，`git` 仅允许 `log/rev-list/diff --stat`。
+- **可见性按调用方过滤**：`audiences=("agent"|"chat"|"investigate", ...)`，调查子 agent 拿不到写工具。
+- **`ToolError` 是数据不是崩溃**：预期失败作为工具结果回灌模型，Run 继续；只有未捕获异常才改 Run 状态。
+- 共 29 个对话工具，覆盖岗位、证据、草稿、项目、评价、面试与 Run 日志检索。
+
+## 上下文与续跑
+
+- **业务 agent**：`assemble()` 按块装载，装不下先截断、再丢弃，`dropped` 写进快照。
+- **对话助手**：`chat_entries` append-only；每次调用重建上下文，最近 2 轮工具结果保留全文，更早的换成确定性摘要；估算占用超窗口 60% 自动压缩，压缩失败降级硬截断；`/compact` 可手动触发。
+- **确认后续跑**：点确认会创建一个续跑 Run，确定性执行已批准的调用，再把结果喂回模型继续本轮；未批准的动作模型看不到。
+- **流式**：`token.delta` 只走 Redis 实时通道、不落库，避免事件表膨胀；最终文本以 `run_steps.response_json` / `chat.message` 为准，重连不补分片。
+- **提示词版本化**：按内容 hash 存 `prompts` 表，同名内容变化自动停用旧版本；step 记录 `prompt@hash`，历史可解释。
+
+## Harness 不变量
+
+1. **单一执行入口**：所有 agent 调用经 `RunExecutor`，业务代码不直接调模型。
+2. **工具契约**：入参 Pydantic 校验，路径白名单在工具层强制，模型不能拼 shell。
+3. **上下文有预算**：`ContextBudget` 显式截断并记录丢弃项。
+4. **状态在库里**：`runs` 状态机；worker 重启把遗留 `running` 标为 `interrupted`，不假装续跑。
+5. **可回放**：`run_events(seq)` + `run_steps`（含 prompt 版本、token、延迟）+ SSE 重放。
+6. **提示词版本化**：`prompts` 表按内容 hash 存版本，step 记录 `prompt@hash`。
+7. **人在环**：证据条目需人工确认；评价只出报告；导出门禁校验 claim 引用。
 
 ## 目录
 
@@ -217,16 +304,6 @@ npm run build    # 生产构建，后端 / 直接托管
 - 解析结果只回填原文明确出现的字段。公司名缺失时保持空字符串，不猜测。
 - `ambiguities` 记录原文中不自洽或缺失的信息，供你自己判断。
 - 投递状态（收藏 / 已投 / 面试中 / 挂）只由手动设置，系统从不推断。
-
-## Harness 不变量
-
-1. **单一执行入口**：所有 agent 调用经 `RunExecutor`，业务代码不直接调模型。
-2. **工具契约**：入参 Pydantic 校验，路径白名单在工具层强制，模型不能拼 shell。
-3. **上下文有预算**：`ContextBudget` 显式截断并记录丢弃项。
-4. **状态在库里**：`runs` 状态机；worker 重启把遗留 `running` 标为 `interrupted`，不假装续跑。
-5. **可回放**：`run_events(seq)` + `run_steps`（含 prompt 版本、token、延迟）+ SSE 重放。
-6. **提示词版本化**：`prompts` 表按内容 hash 存版本，step 记录 `prompt@hash`。
-7. **人在环**：证据条目需人工确认；评价只出报告；导出门禁校验 claim 引用。
 
 ## 里程碑
 
