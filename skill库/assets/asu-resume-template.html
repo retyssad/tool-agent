@@ -1,0 +1,923 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>ASu Resume</title>
+  <style>
+.resume-toolbar { position:fixed; z-index:1000; left:0; right:0; top:0; min-height:58px; padding:10px 18px; display:flex; align-items:center; justify-content:flex-end; flex-wrap:wrap; gap:9px; background:rgba(255,255,255,.97); border-bottom:1px solid #ccd5df; box-shadow:0 2px 10px rgba(21,41,62,.12); }
+.toolbar-title { margin-right:auto; color:#3b4b5d; font-size:13px; letter-spacing:.06em; }
+.resume-toolbar button { border:1px solid #9db0c4; border-radius:5px; background:#fff; color:#24466e; padding:7px 13px; font:inherit; cursor:pointer; }
+.resume-toolbar button:hover { background:#edf4fb; border-color:#315f98; }
+.resume-toolbar button[data-action=pdf] { color:#fff; background:#315f98; border-color:#315f98; }
+.toolbar-control { display:flex; align-items:center; gap:5px; color:#526273; font-size:12px; white-space:nowrap; }
+.toolbar-control select { border:1px solid #9db0c4; border-radius:5px; background:#fff; color:#24466e; padding:6px 7px; font:inherit; }
+.toolbar-control input[type=color] { width:34px; height:30px; padding:2px; border:1px solid #9db0c4; border-radius:5px; background:#fff; cursor:pointer; }
+.resume-toolbar button[data-action=bold] { min-width:68px; }
+.resume-toolbar button[data-action=autofit][aria-pressed=true] { color:#fff; background:#315f98; border-color:#315f98; }
+.resume-toolbar button[data-action=autofit]:disabled { color:#8993a0; background:#f3f5f7; border-color:#cbd5df; cursor:not-allowed; }
+.resume-toolbar button[data-action=reset].armed { border-color:#dc2626; background:#dc2626; color:#fff; }
+.save-status { color:#64748b; font-size:12px; white-space:nowrap; }
+.fit-status { color:#64748b; font-size:12px; white-space:nowrap; }
+.fit-status.warn { color:#b45309; }
+
+@media print { .resume-toolbar { display:none !important; } }
+
+    @page { size: A4; margin: 7mm 10mm 8mm; }
+    :root { --blue: #2458b8; --text: #151515; --muted: #596273; --band: #f2f3f5; }
+    * { box-sizing: border-box; }
+    html, body { margin: 0; padding: 0; background: #fff; }
+    body { color: var(--text); font-family: "Times New Roman", "SimHei", "黑体", "Microsoft YaHei", sans-serif; font-size: 10.5pt; line-height: 1.34; }
+    .resume-toolbar { position:sticky; font:13px/1.3 Arial, "Microsoft YaHei", sans-serif; }
+    .resume-toolbar select { max-width:150px; }
+    .sheet { width: 210mm; min-height: 0; padding: 7mm 10mm 8mm; border-top: 0; margin: 0 auto; }
+    .page-break { break-before: auto; }
+    body[data-page-mode="continuous"] { width: 100%; }
+    body[data-page-mode="continuous"] .sheet { width: 210mm; }
+    body[data-page-mode="continuous"] .sheet + .sheet { padding-top: 0; }
+    @media screen {
+      body[data-page-mode="paged"] { min-height: 100vh; padding: 4mm 0 12mm; background: #eef0f3; }
+      body[data-page-mode="paged"] .sheet { min-height: 297mm; margin: 0 auto 12mm; background: #fff; box-shadow: 0 2px 18px rgba(31, 41, 55, .18); }
+      body[data-page-mode="paged"] .sheet:last-of-type { margin-bottom: 0; }
+      body[data-page-mode="continuous"] { background: #fff; }
+      body[data-page-mode="continuous"] .sheet { margin: 0 auto; box-shadow: none; }
+    }
+    @media print {
+      .sheet { padding: 0; width: auto; min-height: 0; }
+      body[data-page-mode="paged"] .sheet { margin: 0; box-shadow: none; }
+      body[data-page-mode="continuous"] .sheet { margin: 0; box-shadow: none; }
+      .profile-photo-slot { border-color: transparent; background: transparent; cursor: default; }
+      .profile-photo-slot::after, .profile-photo-slot .photo-placeholder { display: none !important; }
+    }
+    [contenteditable="true"]:focus { outline: 2px solid #b7caf3; outline-offset: 2px; }
+    h1 { margin: 0 0 3px; font-family: "Microsoft YaHei", "Arial", sans-serif; font-size: 24pt; line-height: 1.08; font-weight: 700; }
+    .header-grid { display: grid; grid-template-columns: minmax(0, 1fr) 28mm; gap: 8mm; align-items: start; }
+    .profile-photo-slot { position: relative; width: 28mm; height: 36mm; display: flex; align-items: center; justify-content: center; overflow: hidden; border: 1px dashed #a8adb7; background: #fafafa; color: #8b919c; font: 9pt/1.2 Arial, sans-serif; text-align: center; cursor: pointer; }
+    .profile-photo-slot.has-photo { border-color: transparent; background: transparent; }
+    .profile-photo-slot:not(.has-photo):hover, .profile-photo-slot:not(.has-photo):focus-visible { border-color: #2458b8; outline: none; }
+    .profile-photo-slot::after { content: "点击上传"; position: absolute; inset: auto 0 0; padding: 4px 2px; background: rgba(36, 88, 184, .88); color: #fff; font: 8pt/1.2 Arial, "Microsoft YaHei", sans-serif; opacity: 0; transition: opacity .15s ease; }
+    .profile-photo-slot:hover::after, .profile-photo-slot:focus-visible::after { opacity: 1; }
+    .profile-photo-slot.has-photo::after { content: "点击替换"; }
+    .photo-placeholder { pointer-events: none; }
+    .profile-photo-slot img { display: block; width: 100%; height: 100%; object-fit: cover; }
+    .meta-row { display: flex; align-items: center; gap: 4px; margin: 2px 0; font-size: 11.5pt; line-height: 1.42; white-space: nowrap; }
+    .meta-icon { width: 16px; height: 16px; object-fit: contain; flex: 0 0 auto; }
+    .meta-row strong { font-weight: 700; }
+    .separator { color: #2d2d2d; padding: 0 5px; }
+    .section { margin-top: 8px; }
+    .section-title { margin: 0 0 4px; padding-bottom: 2px; border-bottom: 2px solid var(--blue); color: var(--blue); font-family: "Microsoft YaHei", "Arial", sans-serif; font-size: 18.5pt; line-height: 1.03; font-weight: 700; break-after: avoid; }
+    .lead { margin: 3px 0 4px; color: #1d448f; font-size: 10.8pt; line-height: 1.35; font-weight: 700; }
+    .evidence-link { margin: 2px 0 5px; color: #2458b8; font-size: 11.5pt; font-weight: 700; }
+    .evidence-link a { color: inherit; }
+    .evidence-row { display: flex; align-items: center; justify-content: space-between; gap: 12px; }
+    .evidence-link { display: flex; align-items: center; flex-wrap: wrap; gap: 2px; }
+    .trend-badge { min-width: 135px; padding: 4px 7px; border: 1px solid #7351a3; border-radius: 6px; color: #7351a3; text-align: center; font: 7px/1.25 Arial, sans-serif; }
+    .trend-badge strong { font-size: 8px; }
+    .company { display: flex; align-items: center; gap: 7px; min-height: 31px; margin: 6px 0 4px; padding: 5px 8px; border-radius: 6px; background: var(--band); page-break-inside: avoid; break-inside: avoid; }
+    .company-logo { width: 27px; height: 27px; object-fit: contain; flex: 0 0 auto; }
+    .company-name { flex: 1; min-width: 0; font-size: 11.2pt; font-weight: 700; }
+    .company-meta { color: #202020; font-size: 9.5pt; white-space: nowrap; }
+    .education-name .education-major { margin-left: 18px; }
+    .project { margin: 3px 0 4px; page-break-inside: avoid; }
+    .project-title { margin: 3px 0 2px; color: #244b9b; font-size: 11.5pt; line-height: 1.12; font-weight: 700; break-after: avoid; }
+    ul { margin: 1px 0 3px 17px; padding: 0; }
+    li { margin: 1px 0; break-inside: avoid; }
+    li::marker { font-size: .8em; }
+    .nested { margin-left: 18px; }
+    .nested::marker { content: "○ "; }
+    .nested-deep { margin-left: 35px; }
+    .nested-deep::marker { content: "▪ "; }
+    .code { padding: 0 2px; border-radius: 2px; background: #eef0f3; font-family: "Cascadia Mono", Consolas, monospace; font-size: .9em; }
+    .muted { color: var(--muted); }
+    .small { font-size: 9pt; }
+    .sheet[data-fit-spacing="tight"] .section { margin-top: 5px; }
+    .sheet[data-fit-spacing="tight"] .section-title { margin-bottom: 2px; padding-bottom: 1px; }
+    .sheet[data-fit-spacing="tight"] .company { margin: 4px 0 2px; padding-top: 3px; padding-bottom: 3px; }
+    .sheet[data-fit-spacing="tight"] .project { margin: 2px 0; }
+    .sheet[data-fit-spacing="tight"] li { margin: 0; }
+    .sheet[data-fit-lh="tight"] { line-height: 1.24; }
+    .sheet[data-fit-scale] > * { width: var(--resume-fit-width, 100%); zoom: var(--resume-fit-scale, 1); }
+  </style>
+</head>
+<body data-page-mode="paged">
+<div class="resume-toolbar" role="toolbar" aria-label="简历工具" contenteditable="false">
+  <span class="toolbar-title">HTML 简历</span>
+  <button type="button" data-action="edit">编辑</button>
+  <button type="button" data-action="autofit" aria-pressed="false">自动一页</button>
+  <span data-fit-status class="fit-status" role="status" aria-live="polite"></span>
+  <label class="toolbar-control">字体<select data-action="font" aria-label="字体"><option value="Microsoft YaHei">微软雅黑</option><option value="SimSun">宋体</option><option value="SimHei">黑体</option><option value="Arial">Arial</option><option value="Georgia">Georgia</option><option value="Times New Roman">Times New Roman</option><optgroup label="本地字体" data-local-font-group></optgroup></select></label>
+  <button type="button" data-action="local-fonts" title="读取系统中已安装的字体（需浏览器授权）">本地字体</button>
+  <button type="button" data-action="import-font" title="导入本地字体文件（TTF / OTF / WOFF / WOFF2）">导入字体</button>
+  <input type="file" accept=".ttf,.otf,.ttc,.woff,.woff2" multiple data-font-file-input hidden>
+  <label class="toolbar-control color-control">文字颜色<input type="color" data-action="color" value="#20252b" aria-label="文字颜色"></label>
+  <button type="button" data-action="bold" title="对选中文字加粗或取消加粗"><strong>B</strong> 加粗</button>
+  <label class="toolbar-control">字号<select data-action="font-size" title="字号" aria-label="字号"><option value="10px">10</option><option value="11px" selected>11</option><option value="12px">12</option><option value="14px">14</option><option value="16px">16</option><option value="18px">18</option><option value="22px">22</option><option value="26px">26</option></select></label>
+  <button type="button" data-action="photo">替换照片</button>
+  <button type="button" data-action="save">保存 HTML</button>
+  <button type="button" data-action="pdf">导出 PDF</button>
+  <button type="button" data-action="reset" title="清除所有编辑，恢复文件初始内容">重置</button>
+  <span data-save-status class="save-status" role="status" aria-live="polite">自动保存已开启</span>
+  <input type="file" accept="image/*" data-photo-input hidden>
+    <label for="pageMode">页面模式</label>
+    <select id="pageMode" class="page-mode-select" aria-label="选择页面模式">
+      <option value="paged">A4 分页</option>
+      <option value="continuous">A4 长页（不限高度）</option>
+    </select>
+    <button class="tool-button history-button" type="button" data-command="undo" title="撤回编辑" aria-label="撤回编辑">撤回</button>
+    <button class="tool-button history-button" type="button" data-command="redo" title="前进编辑" aria-label="前进编辑">前进</button></div>
+
+
+  <main class="sheet" contenteditable="true">
+    <header class="header-grid">
+      <div>
+        <h1>姓名</h1>
+        <div class="meta-row"><img class="meta-icon" src="icons/phone.svg" alt="电话图标"><span>电话</span><span class="separator">|</span><img class="meta-icon" src="icons/envelope.svg" alt="邮箱图标"><span>邮箱</span><span class="separator">|</span><img class="meta-icon" src="icons/wechat.svg" alt="微信图标"><span>微信 / 主页</span></div>
+        <div class="meta-row"><img class="meta-icon" src="icons/user.svg" alt="身份图标"><strong>年龄或身份 · 目标岗位 · 核心方向 · 到岗时间</strong></div>
+        <div class="meta-row"><img class="meta-icon" src="logos/github.svg" alt="GitHub 图标"><strong>GitHub / 作品集 / 论文 / 开源贡献</strong></div>
+      </div>
+      <div class="profile-photo-slot" contenteditable="false" role="button" tabindex="0" aria-label="选择或替换证件照">
+        <span class="photo-placeholder">证件照<br>预留位置</span>
+      </div>
+    </header>
+
+    <section class="section">
+      <h2 class="section-title">教育经历</h2>
+      <div class="company">
+        <div class="company-name education-name">清华大学（虚构示例）<span class="education-major">· 计算机科学与技术 · 本科</span></div>
+        <div class="company-meta">20XX.MM - 20XX.MM</div>
+      </div>
+      <div class="company">
+        <div class="company-name education-name">清华大学（虚构示例）<span class="education-major">· 计算机技术 · 硕士</span></div>
+        <div class="company-meta">20XX.MM - 20XX.MM</div>
+      </div>
+    </section>
+
+    <section class="section">
+      <h2 class="section-title">实习经历</h2>
+    </section>
+
+    <section class="section">
+      <div class="company">
+        <img class="company-logo" src="logos/openai.svg" alt="OpenAI Logo">
+        <div class="company-name">OpenAI（虚构示例） · AI Agent 工程实习生</div>
+        <div class="company-meta">YYYY.MM - YYYY.MM</div>
+      </div>
+      <article class="project">
+        <div class="project-title">Agent Runtime Engineering　|　Multi-Agent Relay + Trajectory Synthesis Pipeline</div>
+        <ul>
+          <li><strong>背景与目标：</strong>说明数据、训练、推理或评测链路中的核心问题；<strong>目标：</strong>写真实可核验的优化方向。</li>
+          <li><strong>我的职责：</strong>项目 owner / 模块负责人，完全负责从 0 到 1 设计并落地以下系统架构与技术链路。</li>
+          <li class="nested"><strong>执行链路：</strong>统一 Agent 接口接入多个 scaffold；通过 <span class="code">run / get_answer</span> 接口接入模型，完成任务执行、失败恢复和结果汇总。</li>
+          <li class="nested"><strong>工程化：</strong>补充上下文压缩、Checkpoint 续跑、失败重试、评测与导出，并标明真实指标和个人边界。</li>
+        </ul>
+      </article>
+      <article class="project">
+        <div class="project-title">Agent Tracer Evaluation for SFT &amp; RL　|　Trajectory Diagnosis + Rubric Eval and Wash Pipeline</div>
+        <ul>
+          <li><strong>背景与目标：</strong>说明 Agent 规划、工具链效率、错误恢复或 patch 质量的评测问题。</li>
+          <li><strong>我的职责：</strong>项目 owner / 评测模块负责人，写清 LLM-as-Judge、Rubric、Failure Onset、轨迹压缩和 wash/export 的实现边界。</li>
+        </ul>
+      </article>
+    </section>
+
+    <section class="section">
+      <div class="company">
+        <img class="company-logo" src="logos/claude.svg" alt="Claude Logo">
+        <div class="company-name">Claude（虚构示例） · AI 应用工程实习生</div>
+        <div class="company-meta">YYYY.MM - YYYY.MM</div>
+      </div>
+      <article class="project">
+        <div class="project-title">Claude Agent Workflow　|　意图识别、工具调用与业务流程自动化</div>
+        <ul>
+          <li><strong>背景与目标：</strong>为客服和运营团队提供统一的业务问答与流程执行入口，减少重复查询和人工流转。</li>
+          <li><strong>个人职责：</strong>参与需求拆解、Prompt 设计、工具协议定义和服务联调，负责核心流程的实现与维护。</li>
+          <li class="nested"><strong>技术实现：</strong>按意图路由检索、订单查询和工单创建等工具，统一结构化输入输出并增加失败重试。</li>
+          <li class="nested"><strong>工程协作：</strong>补充接口文档、测试样例和日志字段，协助定位线上异常并完成版本迭代。</li>
+        </ul>
+      </article>
+      <article class="project">
+        <div class="project-title">企业知识库　|　文档解析、向量检索与回答生成</div>
+        <ul>
+          <li><strong>项目工作：</strong>参与 PDF、网页和表格资料清洗，设计切分策略、召回参数和引用展示格式。</li>
+          <li><strong>交付内容：</strong>完成离线评测脚本、错误样本整理和问答结果回放页面，支持团队持续调优。</li>
+        </ul>
+      </article>
+    </section>
+
+    <section class="section">
+      <div class="company">
+        <img class="company-logo" src="logos/openai.svg" alt="OpenAI Logo">
+        <div class="company-name">OpenAI（虚构示例） · 多模态算法工程实习生</div>
+        <div class="company-meta">YYYY.MM - YYYY.MM</div>
+      </div>
+      <article class="project">
+        <div class="project-title">Multimodal Processing Pipeline　|　OCR、版面分析与质量评测</div>
+        <ul>
+          <li><strong>背景与目标：</strong>统一处理图片、PDF 和表格等多种输入，提升内容抽取、结构化和检索准备效率。</li>
+          <li><strong>个人职责：</strong>负责数据流程编排、样本标注规范和评测结果整理，配合算法与后端团队完成接口落地。</li>
+          <li class="nested"><strong>技术实现：</strong>组合 OCR、版面分析、表格抽取和文本清洗模块，支持异步任务、断点续跑和错误分类。</li>
+          <li class="nested"><strong>协作产出：</strong>沉淀数据字典、回归样本和使用文档，为后续模型替换与效果对比提供统一标准。</li>
+        </ul>
+      </article>
+    </section>
+
+    <section class="section">
+      <h2 class="section-title">项目经历</h2>
+      <div class="company">
+        <img class="company-logo" src="logos/github.svg" alt="GitHub Logo">
+        <div class="company-name">示例个人项目 · Agent 应用与工作流平台</div>
+        <div class="company-meta">YYYY.MM - YYYY.MM</div>
+      </div>
+      <article class="project">
+        <div class="project-title">智能任务协作平台　|　Workflow 编排、工具注册与上下文管理</div>
+        <ul>
+          <li><strong>项目简介：</strong>面向复杂任务提供可视化流程编排、工具调用和结果回传能力，支持从需求输入到执行记录的完整链路。</li>
+          <li><strong>个人贡献：</strong>负责任务拆解、Agent 状态管理、工具协议设计和前后端接口联调，形成可复用的项目骨架。</li>
+          <li class="nested"><strong>技术落地：</strong>通过 Workflow、Tool Registry、Memory 和 Trace 模块组织执行过程，支持失败重试、人工确认和结果导出。</li>
+        </ul>
+      </article>
+    </section>
+  </main>
+
+  <main class="sheet page-break" contenteditable="true">
+    <section class="section">
+      <div class="company">
+        <img class="company-logo" src="logos/claude.svg" alt="Claude Logo">
+        <div class="company-name">Claude（虚构示例） · 产品运营 Agent 实习生</div>
+        <div class="company-meta">YYYY.MM - YYYY.MM</div>
+      </div>
+      <article class="project">
+        <div class="project-title">Claude Product Agent　|　业务流程与工具调用</div>
+        <ul>
+          <li><strong>背景与目标：</strong>为产品、运营、研发提供业务 Agent，支持数据分析、报告生成、归因和需求文档解析。</li>
+          <li><strong>我的职责：</strong>项目 owner，负责从 0 到 1 设计业务流程、工具注册、上下文管理和结果回传。</li>
+          <li><strong>技术落地：</strong>说明意图识别、条件路由、Tool Registry、结构化输出、重试与错误分类等真实实现。</li>
+        </ul>
+      </article>
+    </section>
+
+    <section class="section">
+      <div class="company">
+        <img class="company-logo" src="logos/bilibili-color.svg" alt="哔哩哔哩 Logo">
+        <div class="company-name">哔哩哔哩 · 技术产品 / 开源项目</div>
+        <div class="company-meta">YYYY.MM - YYYY.MM</div>
+      </div>
+      <article class="project">
+        <div class="project-title">AI Startup 兼职&amp;开源项目　|　可公开验证的作品与贡献</div>
+        <ul>
+          <li><strong>项目简介：</strong>用一句话说明产品或开源项目的用户、场景和技术定位。</li>
+          <li><strong>个人贡献：</strong>只写本人实际完成、提交、上线或维护的部分；保留仓库、PR、Issue 或作品链接。</li>
+        </ul>
+      </article>
+    </section>
+
+    <section class="section">
+      <div class="company">
+        <img class="company-logo" src="logos/github.svg" alt="GitHub Logo">
+        <div class="company-name">示例开源项目 · Agent 工程化与智能应用</div>
+        <div class="company-meta">YYYY.MM - YYYY.MM</div>
+      </div>
+      <article class="project">
+        <div class="project-title">知识库问答 Agent　|　RAG 检索、工具调用与结果追踪</div>
+        <ul>
+          <li><strong>背景与目标：</strong>面向企业知识库问答场景，解决资料分散、答案不可追溯和多轮上下文不稳定等问题。</li>
+          <li><strong>我的职责：</strong>负责从需求拆解到服务落地，设计检索、重排、生成、引用和反馈闭环。</li>
+          <li class="nested"><strong>技术实现：</strong>接入文档解析、向量检索、关键词检索和 Rerank，按问题类型动态选择召回链路。</li>
+          <li class="nested"><strong>工程化：</strong>增加会话记忆、答案引用、失败重试和结构化日志，支持本地调试与线上问题回放。</li>
+        </ul>
+      </article>
+      <article class="project">
+        <div class="project-title">多模态文档处理平台　|　OCR、版面分析与评测工作流</div>
+        <ul>
+          <li><strong>背景与目标：</strong>处理 PDF、图片和表格等混合文档，建立从上传、解析、切分到检索问答的统一流程。</li>
+          <li><strong>我的职责：</strong>负责任务编排、数据结构设计和评测工具建设，明确模型能力与个人交付边界。</li>
+          <li class="nested"><strong>关键动作：</strong>将 OCR、版面结构、表格抽取和文本清洗封装为可组合节点，支持异步任务和断点续跑。</li>
+          <li class="nested"><strong>质量保障：</strong>建立样本集、回归测试和错误分类，记录每次模型或 Prompt 变更后的质量变化。</li>
+        </ul>
+      </article>
+    </section>
+
+    <section class="section">
+      <h2 class="section-title">校园经历</h2>
+      <article class="project">
+        <div class="project-title">奖学金与论文　|　研究方向与技术写作</div>
+        <ul>
+          <li><strong>奖学金：</strong>填写奖学金名称、等级、获得时间和评定范围。</li>
+          <li><strong>论文：</strong>填写论文题目、作者顺序、投稿或发表状态和研究方向。</li>
+          <li><strong>研究方向：</strong>填写研究主题、承担工作、实验方法和主要结论。</li>
+        </ul>
+      </article>
+    </section>
+
+    <section class="section">
+      <h2 class="section-title">技能与其他</h2>
+      <div contenteditable="true">
+        <strong>编程语言：</strong>Python　·　TypeScript　·　JavaScript　·　SQL<br>
+        <strong>AI 工程：</strong>Agent / LLM　·　RAG　·　MCP　·　Prompt Engineering　·　评测与观测<br>
+        <strong>工程基础：</strong>FastAPI　·　Vue / React　·　Docker　·　Git　·　Linux　·　CI/CD<br>
+        <strong>其他：</strong>论文阅读　·　技术写作　·　开源协作　·　英语资料检索　·　奖项与证书
+      </div>
+    </section>
+  </main>
+  <script>
+    (() => {
+      const pageMode = document.querySelector('#pageMode');
+      const modeStorageKey = 'asu-resume-page-mode';
+      const sheets = Array.from(document.querySelectorAll('main.sheet'));
+      const getStoredValue = (key) => {
+        try {
+          return localStorage.getItem(key);
+        } catch (error) {
+          return null;
+        }
+      };
+      const setStoredValue = (key, value) => {
+        try {
+          localStorage.setItem(key, value);
+          return true;
+        } catch (error) {
+          return false;
+        }
+      };
+      const applyMode = (mode) => {
+        document.body.dataset.pageMode = mode;
+        pageMode.value = mode;
+      };
+      applyMode(getStoredValue(modeStorageKey) || 'paged');
+      pageMode.addEventListener('change', () => {
+        applyMode(pageMode.value);
+        setStoredValue(modeStorageKey, pageMode.value);
+      });
+    })();
+(() => {
+  const roots = Array.from(document.querySelectorAll('.resume-page, main.sheet'));
+  const root = roots[0];
+  if (!root) return;
+  const saveStatus = document.querySelector('[data-save-status]');
+  const setSaveStatus = (text) => {
+    if (saveStatus) saveStatus.textContent = text;
+  };
+  const hashText = (text) => {
+    let hash = 2166136261;
+    for (let index = 0; index < text.length; index += 1) {
+      hash ^= text.charCodeAt(index);
+      hash = Math.imul(hash, 16777619);
+    }
+    return (hash >>> 0).toString(16);
+  };
+  const contentStoragePrefix = root.matches('main.sheet') ? 'asu-resume-content-v3' : 'resume-content-v1';
+  const contentStorageKey = `${contentStoragePrefix}-${hashText(window.location.href)}`;
+  const originalRoots = roots.map((page) => page.innerHTML);
+  const templateHash = hashText(JSON.stringify(originalRoots));
+  let saveTimer = null;
+  const getStoredValue = () => {
+    try {
+      return localStorage.getItem(contentStorageKey);
+    } catch (error) {
+      return null;
+    }
+  };
+  const restoreSavedContent = () => {
+    const raw = getStoredValue();
+    if (!raw) return;
+    try {
+      const saved = JSON.parse(raw);
+      if (saved.templateHash !== templateHash || !Array.isArray(saved.sheets) || saved.sheets.length !== roots.length) {
+        setSaveStatus('模板已更新，未恢复旧内容');
+        return;
+      }
+      roots.forEach((page, index) => {
+        if (typeof saved.sheets[index] === 'string') page.innerHTML = saved.sheets[index];
+      });
+      setSaveStatus('已恢复上次编辑');
+    } catch (error) {
+      setSaveStatus('自动保存已开启');
+    }
+  };
+  const saveContent = () => {
+    try {
+      localStorage.setItem(contentStorageKey, JSON.stringify({
+        version: 2,
+        templateHash,
+        sheets: roots.map((page) => page.innerHTML),
+        savedAt: new Date().toISOString()
+      }));
+      setSaveStatus('已自动保存');
+    } catch (error) {
+      setSaveStatus('自动保存不可用');
+    }
+  };
+  const scheduleSave = () => {
+    setSaveStatus('保存中...');
+    window.clearTimeout(saveTimer);
+    saveTimer = window.setTimeout(saveContent, 350);
+  };
+  restoreSavedContent();
+  roots.forEach((page) => page.addEventListener('input', scheduleSave));
+  window.addEventListener('beforeunload', saveContent);
+  document.addEventListener('resume-change', scheduleSave);
+  document.addEventListener('resume-before-save', saveContent);
+  const changed = () => document.dispatchEvent(new Event('resume-change'));
+  const editButton = document.querySelector('[data-action="edit"]');
+  const fontSelect = document.querySelector('[data-action="font"]');
+  const colorInput = document.querySelector('[data-action="color"]');
+  const boldButton = document.querySelector('[data-action="bold"]');
+  const photoButton = document.querySelector('[data-action="photo"]');
+  const autofitButton = document.querySelector('[data-action="autofit"]');
+  const fitStatus = document.querySelector('[data-fit-status]');
+  const saveButton = document.querySelector('[data-action="save"]');
+  const pdfButton = document.querySelector('[data-action="pdf"]');
+  const resetButton = document.querySelector('[data-action="reset"]');
+  const photoInput = document.querySelector('[data-photo-input]');
+  const photoFrame = document.querySelector('.photo-frame, .profile-photo-slot');
+  const photoImage = photoFrame?.querySelector('img');
+  const initialPhotoSource = photoImage?.getAttribute('src') || '';
+  if (photoFrame && initialPhotoSource && !/fictional-resume-photo\.png(?:[?#].*)?$/i.test(initialPhotoSource)) {
+    photoFrame.classList.add('has-photo');
+  }
+  let savedRange = null;
+  if (resetButton) {
+    let armed = false;
+    let disarmTimer = null;
+    const disarm = () => {
+      armed = false;
+      resetButton.classList.remove('armed');
+      resetButton.textContent = '重置';
+      window.clearTimeout(disarmTimer);
+    };
+    const resetEditor = () => {
+      window.clearTimeout(saveTimer);
+      try { localStorage.removeItem(contentStorageKey); } catch (error) { /* 忽略 */ }
+      roots.forEach((page, index) => {
+        page.innerHTML = originalRoots[index];
+      });
+      if (photoInput) photoInput.value = '';
+      savedRange = null;
+      setSaveStatus('已恢复文件初始内容');
+    };
+    resetButton.addEventListener('click', () => {
+      if (!armed) {
+        armed = true;
+        resetButton.classList.add('armed');
+        resetButton.textContent = '再点一次确认重置';
+        window.clearTimeout(disarmTimer);
+        disarmTimer = window.setTimeout(disarm, 3000);
+        return;
+      }
+      disarm();
+      resetEditor();
+    });
+    resetButton.addEventListener('mouseleave', () => {
+      if (armed) disarmTimer = window.setTimeout(disarm, 800);
+    });
+    resetButton.addEventListener('mouseenter', () => {
+      window.clearTimeout(disarmTimer);
+    });
+  }
+  document.addEventListener('selectionchange', () => {
+    const selection = window.getSelection();
+    if (!selection || !selection.rangeCount || !roots.some((page) => page.contains(selection.anchorNode) && page.contains(selection.focusNode))) return;
+    savedRange = selection.getRangeAt(0).cloneRange();
+  });
+  const restoreSelection = () => {
+    if (!savedRange) return;
+    const selection = window.getSelection();
+    selection.removeAllRanges();
+    selection.addRange(savedRange);
+  };
+  const applyFormat = (command, value = null) => {
+    if (root.getAttribute('contenteditable') !== 'true') editButton.click();
+    root.focus();
+    restoreSelection();
+    document.execCommand(command, false, value);
+    changed();
+  };
+  editButton?.addEventListener('click', () => {
+    const editing = root.getAttribute('contenteditable') === 'true';
+    roots.forEach((page) => {
+      page.setAttribute('contenteditable', String(!editing));
+      page.classList.toggle('is-editing', !editing);
+    });
+    editButton.textContent = editing ? '编辑' : '完成编辑';
+    if (!editing) root.focus();
+  });
+  if (root.getAttribute('contenteditable') === 'true') editButton.textContent = '完成编辑';
+  document.querySelectorAll('.resume-toolbar button').forEach((button) => {
+    button.addEventListener('mousedown', (event) => event.preventDefault());
+  });
+  document.querySelectorAll('[data-command]').forEach((button) => {
+    button.addEventListener('click', () => applyFormat(button.dataset.command));
+  });
+  document.querySelector('[data-action="font-size"]')?.addEventListener('change', (event) => {
+    restoreSelection();
+    const selection = window.getSelection();
+    if (!savedRange || !selection.rangeCount || selection.isCollapsed) return;
+    const range = selection.getRangeAt(0);
+    const wrapper = document.createElement('span');
+    wrapper.style.fontSize = event.target.value;
+    wrapper.appendChild(range.extractContents());
+    range.insertNode(wrapper);
+    range.selectNodeContents(wrapper);
+    selection.removeAllRanges();
+    selection.addRange(range);
+    savedRange = range.cloneRange();
+    changed();
+  });
+  photoButton?.addEventListener('click', () => photoInput?.click());
+  document.addEventListener('click', (event) => {
+    if (event.target.closest?.('.profile-photo-slot')) photoInput?.click();
+  });
+  document.addEventListener('keydown', (event) => {
+    if (event.target.closest?.('.profile-photo-slot') && ['Enter', ' '].includes(event.key)) {
+      event.preventDefault();
+      photoInput?.click();
+    }
+  });
+  photoInput?.addEventListener('change', (event) => {
+    const file = event.target.files?.[0];
+    event.target.value = '';
+    if (!file || !file.type.startsWith('image/') || !photoFrame) return;
+    const reader = new FileReader();
+    reader.onload = () => {
+      const photoFrame = document.querySelector('.photo-frame, .profile-photo-slot');
+      if (!photoFrame) return;
+      let image = photoFrame.querySelector('img');
+      if (!image) {
+        image = document.createElement('img');
+        image.className = 'profile-photo';
+        image.alt = '证件照';
+        photoFrame.prepend(image);
+      }
+      image.src = reader.result;
+      photoFrame.classList.add('has-photo');
+      photoFrame.querySelector('.photo-placeholder')?.remove();
+      setToolStatus('照片已替换');
+      changed();
+    };
+    reader.readAsDataURL(file);
+  });
+  const localFontGroup = fontSelect ? fontSelect.querySelector('[data-local-font-group]') : null;
+  const localFontButton = document.querySelector('[data-action="local-fonts"]');
+  const importFontButton = document.querySelector('[data-action="import-font"]');
+  const fontFileInput = document.querySelector('[data-font-file-input]');
+  const toolbarTitle = document.querySelector('.toolbar-title');
+  const localFontValuePrefix = 'local:';
+  const removeLocalFontsValue = '__remove_local_fonts__';
+  const installedFontBlocklist = ['icon', 'emoji', 'symbol', 'wingdings', 'webdings', 'dingbat', 'awesome'];
+  const fontFaces = new Map();
+  let localFonts = [];
+  let installedFontNames = [];
+  let statusTimer = null;
+
+  const setToolStatus = (text) => {
+    if (!toolbarTitle) return;
+    toolbarTitle.textContent = text;
+    window.clearTimeout(statusTimer);
+    statusTimer = window.setTimeout(() => { toolbarTitle.textContent = 'HTML 简历'; }, 3000);
+  };
+  const registerLocalFont = async (name, dataUrl) => {
+    const fontFace = new FontFace(name, `url(${dataUrl})`);
+    await fontFace.load();
+    const previous = fontFaces.get(name);
+    if (previous) document.fonts.delete(previous);
+    document.fonts.add(fontFace);
+    fontFaces.set(name, fontFace);
+  };
+  const refreshLocalFontOptions = () => {
+    if (!localFontGroup) return;
+    const names = [];
+    installedFontNames.forEach((name) => {
+      if (!names.includes(name)) names.push(name);
+    });
+    localFonts.forEach((font) => {
+      if (!names.includes(font.name)) names.push(font.name);
+    });
+    localFontGroup.innerHTML = '';
+    names.forEach((name) => {
+      const option = document.createElement('option');
+      option.value = localFontValuePrefix + name;
+      option.textContent = name;
+      localFontGroup.appendChild(option);
+    });
+    if (names.length) {
+      const removeOption = document.createElement('option');
+      removeOption.value = removeLocalFontsValue;
+      removeOption.textContent = '移除全部本地字体';
+      localFontGroup.appendChild(removeOption);
+    }
+  };
+  const importFontFile = (file) => new Promise((resolve) => {
+    const name = (file.name || '本地字体').replace(/\.(ttf|otf|ttc|woff2?|sfnt)$/i, '').trim() || '本地字体';
+    const reader = new FileReader();
+    reader.onload = async () => {
+      const dataUrl = String(reader.result || '');
+      try {
+        await registerLocalFont(name, dataUrl);
+      } catch (error) {
+        setToolStatus('字体文件无法解析');
+        resolve();
+        return;
+      }
+      localFonts = localFonts.filter((font) => font.name !== name);
+      localFonts.push({ name, data: dataUrl });
+      setToolStatus('本地字体已导入（刷新后需重新导入）');
+      resolve();
+    };
+    reader.onerror = () => {
+      setToolStatus('字体文件无法读取');
+      resolve();
+    };
+    reader.readAsDataURL(file);
+  });
+  const loadInstalledFonts = async () => {
+    if (typeof window.queryLocalFonts !== 'function') {
+      setToolStatus('当前浏览器不支持读取本地字体，可用「导入字体」');
+      return;
+    }
+    setToolStatus('正在读取本地字体...');
+    try {
+      const fonts = await window.queryLocalFonts();
+      const families = new Set();
+      fonts.forEach((font) => {
+        if (!font || typeof font.family !== 'string') return;
+        const family = font.family.trim();
+        if (!family) return;
+        const lower = family.toLowerCase();
+        if (installedFontBlocklist.some((part) => lower.includes(part))) return;
+        families.add(family);
+      });
+      installedFontNames = Array.from(families).sort((a, b) => a.localeCompare(b));
+      refreshLocalFontOptions();
+      setToolStatus(`已读取 ${installedFontNames.length} 个本地字体`);
+    } catch (error) {
+      setToolStatus(error && error.name === 'NotAllowedError' ? '已拒绝本地字体读取权限' : '本地字体读取失败');
+    }
+  };
+  const removeAllLocalFonts = () => {
+    fontFaces.forEach((fontFace) => document.fonts.delete(fontFace));
+    fontFaces.clear();
+    localFonts = [];
+    installedFontNames = [];
+    refreshLocalFontOptions();
+    setToolStatus('已清除本地字体');
+  };
+
+  const initAutofit = () => {
+    if (!autofitButton || !fitStatus) return;
+    const isSinglePage = roots.length === 1 && !document.body.classList.contains('variant-two-page');
+    if (!isSinglePage) {
+      autofitButton.disabled = true;
+      autofitButton.textContent = '自动一页（双页不可用）';
+      autofitButton.title = '双页模板保留原分页，不启用自动一页';
+      fitStatus.textContent = '双页模板';
+      return;
+    }
+
+    const MIN_SCALE = 0.9;
+    const TOL = 1;
+    const A4_HEIGHT_PX = (297 * 96) / 25.4;
+    let autofitOn = root.dataset.autofit === 'true';
+    let fitSuppress = false;
+    let fitTimer = null;
+
+    const measurePage = () => {
+      const style = getComputedStyle(root);
+      const paddingTop = parseFloat(style.paddingTop) || 0;
+      const paddingBottom = parseFloat(style.paddingBottom) || 0;
+      const maxHeight = A4_HEIGHT_PX - paddingTop - paddingBottom;
+      const rootRect = root.getBoundingClientRect();
+      const contentTop = rootRect.top + paddingTop;
+      const bottoms = Array.from(root.querySelectorAll('*'))
+        .filter((element) => {
+          const elementStyle = getComputedStyle(element);
+          const rect = element.getBoundingClientRect();
+          return elementStyle.display !== 'none'
+            && elementStyle.visibility !== 'hidden'
+            && elementStyle.position !== 'fixed'
+            && rect.width > 0
+            && rect.height > 0;
+        })
+        .map((element) => {
+          const marginBottom = parseFloat(getComputedStyle(element).marginBottom) || 0;
+          return element.getBoundingClientRect().bottom + marginBottom;
+        });
+      const used = bottoms.length ? Math.max(...bottoms) - contentTop : 0;
+      return { maxHeight, used, overflow: used - maxHeight };
+    };
+    const forceLayout = () => { void root.offsetHeight; };
+    const applyFit = (spacing, lineHeight, scale) => {
+      root.dataset.fitSpacing = spacing;
+      root.dataset.fitLh = lineHeight;
+      root.dataset.fitScale = String(scale);
+      root.style.setProperty('--resume-fit-scale', String(scale));
+      root.style.setProperty('--resume-fit-width', `${100 / scale}%`);
+      forceLayout();
+    };
+    const resetFit = () => applyFit('normal', 'normal', 1);
+    const fillPercent = (measurement) => Math.round((Math.max(0, measurement.used) / measurement.maxHeight) * 100);
+    const report = (text, kind = 'ok') => {
+      fitStatus.textContent = text;
+      fitStatus.classList.toggle('warn', kind === 'warn');
+    };
+    const paintOverflow = (flag) => { root.dataset.fitOverflow = String(flag); };
+    const fitByScale = () => {
+      let low = MIN_SCALE;
+      let high = 1;
+      for (let index = 0; index < 14; index += 1) {
+        const middle = (low + high) / 2;
+        applyFit('tight', 'tight', middle);
+        if (measurePage().overflow <= TOL) low = middle;
+        else high = middle;
+      }
+      let scale = Math.round(low * 100) / 100;
+      applyFit('tight', 'tight', scale);
+      if (measurePage().overflow > TOL && scale > MIN_SCALE) {
+        scale = Math.max(MIN_SCALE, Math.round((scale - 0.01) * 100) / 100);
+        applyFit('tight', 'tight', scale);
+      }
+      return scale;
+    };
+    const autofit = () => {
+      if (fitSuppress) return;
+      fitSuppress = true;
+      try {
+        resetFit();
+        const defaultMeasurement = measurePage();
+        if (defaultMeasurement.overflow <= TOL) {
+          paintOverflow(false);
+          report(`已适配 · 占用 ${fillPercent(defaultMeasurement)}% · 默认排版`);
+          return;
+        }
+        applyFit('tight', 'normal', 1);
+        const spacingMeasurement = measurePage();
+        if (spacingMeasurement.overflow <= TOL) {
+          paintOverflow(false);
+          report(`已适配 · 压缩间距 · 占用 ${fillPercent(spacingMeasurement)}%`);
+          return;
+        }
+        applyFit('tight', 'tight', 1);
+        const lineHeightMeasurement = measurePage();
+        if (lineHeightMeasurement.overflow <= TOL) {
+          paintOverflow(false);
+          report(`已适配 · 压缩间距+行距 · 占用 ${fillPercent(lineHeightMeasurement)}%`);
+          return;
+        }
+        const scale = fitByScale();
+        const scaleMeasurement = measurePage();
+        if (scaleMeasurement.overflow <= TOL) {
+          paintOverflow(false);
+          report(`已适配 · 字号 ${Math.round(scale * 100)}% · 占用 ${fillPercent(scaleMeasurement)}%`);
+          return;
+        }
+        paintOverflow(true);
+        report(`仍溢出 ${Math.round(scaleMeasurement.overflow)}px · 建议精简内容或改为双页`, 'warn');
+      } finally {
+        fitSuppress = false;
+      }
+    };
+    const checkOverflowOnly = () => {
+      const measurement = measurePage();
+      const overflowing = measurement.overflow > TOL;
+      paintOverflow(overflowing);
+      report(overflowing
+        ? `超出单页 ${Math.round(measurement.overflow)}px · 可开启自动一页`
+        : `一页内 · 占用 ${fillPercent(measurement)}%`, overflowing ? 'warn' : 'ok');
+    };
+    const scheduleFit = () => {
+      if (fitSuppress) return;
+      window.clearTimeout(fitTimer);
+      fitTimer = window.setTimeout(autofitOn ? autofit : checkOverflowOnly, 400);
+    };
+    const updateButton = () => {
+      autofitButton.setAttribute('aria-pressed', String(autofitOn));
+      autofitButton.textContent = autofitOn ? '自动一页：开' : '自动一页';
+    };
+
+    autofitButton.addEventListener('click', () => {
+      autofitOn = !autofitOn;
+      root.dataset.autofit = String(autofitOn);
+      updateButton();
+      if (autofitOn) autofit();
+      else {
+        resetFit();
+        checkOverflowOnly();
+      }
+    });
+    const observer = new MutationObserver(scheduleFit);
+    observer.observe(root, { subtree: true, childList: true, characterData: true });
+    document.addEventListener('resume-change', scheduleFit);
+    updateButton();
+    const initialCheck = () => { if (autofitOn) autofit(); else checkOverflowOnly(); };
+    if (document.fonts?.ready) document.fonts.ready.then(initialCheck);
+    else initialCheck();
+  };
+  initAutofit();
+
+  const suggestedHtmlName = () => {
+    const currentName = decodeURIComponent(window.location.pathname.split('/').pop() || '');
+    if (/\.html?$/i.test(currentName)) return currentName;
+    const safeTitle = (document.title || 'resume').replace(/[\\/:*?"<>|]+/g, '-').trim();
+    return `${safeTitle || 'resume'}.html`;
+  };
+  const serializeHtml = () => {
+    document.dispatchEvent(new Event('resume-before-save'));
+    const clone = document.documentElement.cloneNode(true);
+    const clonedRoot = clone.querySelector('.resume-page');
+    const clonedEditButton = clone.querySelector('[data-action="edit"]');
+    const clonedToolbarTitle = clone.querySelector('.toolbar-title');
+    if (clonedRoot) {
+      clonedRoot.setAttribute('contenteditable', 'false');
+      clonedRoot.classList.remove('is-editing');
+    }
+    clone.querySelectorAll('main.sheet').forEach((page) => page.setAttribute('contenteditable', 'true'));
+    if (clonedEditButton) clonedEditButton.textContent = '编辑';
+    if (clonedToolbarTitle) clonedToolbarTitle.textContent = 'HTML 简历';
+    const clonedStatus = clone.querySelector('[data-save-status]');
+    if (clonedStatus) clonedStatus.textContent = '自动保存已开启';
+    if (localFonts.length) {
+      let fontStyle = clone.querySelector('style[data-saved-local-fonts]');
+      if (!fontStyle) {
+        fontStyle = document.createElement('style');
+        fontStyle.setAttribute('data-saved-local-fonts', '');
+        clone.querySelector('head')?.appendChild(fontStyle);
+      }
+      fontStyle.textContent = localFonts.map((font) => {
+        const name = font.name.replace(/\\/g, '\\\\').replace(/"/g, '\\"');
+        return `@font-face{font-family:"${name}";src:url(${font.data})}`;
+      }).join('\n');
+    }
+    return '<!doctype html>\n' + clone.outerHTML;
+  };
+  const downloadHtml = (html, name) => {
+    const url = URL.createObjectURL(new Blob([html], { type: 'text/html;charset=utf-8' }));
+    const link = document.createElement('a');
+    link.href = url;
+    link.download = name;
+    document.body.appendChild(link);
+    link.click();
+    link.remove();
+    window.setTimeout(() => URL.revokeObjectURL(url), 1000);
+  };
+  const saveHtml = async () => {
+    const html = serializeHtml();
+    const name = suggestedHtmlName();
+    if (typeof window.showSaveFilePicker === 'function') {
+      try {
+        const handle = await window.showSaveFilePicker({
+          suggestedName: name,
+          types: [{ description: 'HTML 文件', accept: { 'text/html': ['.html', '.htm'] } }]
+        });
+        const writable = await handle.createWritable();
+        await writable.write(new Blob([html], { type: 'text/html;charset=utf-8' }));
+        await writable.close();
+        setToolStatus('HTML 已保存到本地');
+        return;
+      } catch (error) {
+        if (error?.name === 'AbortError') {
+          setToolStatus('已取消保存');
+          return;
+        }
+      }
+    }
+    downloadHtml(html, name);
+    setToolStatus('已下载 HTML 副本');
+  };
+
+  fontSelect?.addEventListener('change', () => {
+    const value = fontSelect.value;
+    if (value === removeLocalFontsValue) {
+      removeAllLocalFonts();
+      fontSelect.value = 'Microsoft YaHei';
+      return;
+    }
+    if (value.startsWith(localFontValuePrefix)) {
+      applyFormat('fontName', `"${value.slice(localFontValuePrefix.length)}", "Microsoft YaHei", sans-serif`);
+      return;
+    }
+    applyFormat('fontName', value);
+  });
+  localFontButton?.addEventListener('click', () => { loadInstalledFonts(); });
+  importFontButton?.addEventListener('click', () => {
+    if (!('FontFace' in window && 'fonts' in document)) {
+      setToolStatus('当前浏览器不支持导入字体文件');
+      return;
+    }
+    fontFileInput?.click();
+  });
+  fontFileInput?.addEventListener('change', async (event) => {
+    const files = Array.from(event.target.files || []);
+    event.target.value = '';
+    if (!files.length) return;
+    setToolStatus('正在导入字体...');
+    for (const file of files) await importFontFile(file);
+    refreshLocalFontOptions();
+  });
+  colorInput?.addEventListener('input', () => applyFormat('foreColor', colorInput.value));
+  boldButton?.addEventListener('click', () => applyFormat('bold'));
+  saveButton?.addEventListener('click', saveHtml);
+  pdfButton?.addEventListener('click', () => window.print());
+})();
+
+  </script>
+</body>
+</html>

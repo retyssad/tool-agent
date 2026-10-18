@@ -1,0 +1,67 @@
+:root {
+  --wb-bg: #f6f7f9;
+  --wb-border: #e8eaee;
+  --wb-text: #1f2329;
+  --wb-muted: #8a919c;
+  font-family: "Inter", "PingFang SC", "Microsoft YaHei", system-ui, sans-serif;
+  font-size: 14px;
+  color: var(--wb-text);
+}
+
+* { box-sizing: border-box; }
+
+body {
+  margin: 0;
+  background: var(--wb-bg);
+}
+
+#app { height: 100vh; }
+
+.mono {
+  font-family: "JetBrains Mono", "Cascadia Code", Consolas, monospace;
+  font-size: 12px;
+}
+
+.event-row {
+  display: flex;
+  gap: 8px;
+  padding: 4px 0;
+  border-bottom: 1px dashed var(--wb-border);
+  align-items: baseline;
+}
+
+.event-seq {
+  color: var(--wb-muted);
+  min-width: 34px;
+  text-align: right;
+}
+
+.event-type {
+  font-family: "JetBrains Mono", monospace;
+  font-size: 11px;
+  padding: 1px 6px;
+  border-radius: 4px;
+  background: #eef1f5;
+  white-space: nowrap;
+}
+
+.tag-running { background: #e8f0ff; color: #2358c9; }
+.tag-succeeded { background: #e7f7ed; color: #1a7f43; }
+.tag-failed { background: #fdecec; color: #b3261e; }
+.tag-cancelled { background: #f2f3f5; color: #606770; }
+.tag-interrupted { background: #fff4e5; color: #a35c00; }
+.tag-queued { background: #f2f3f5; color: #606770; }
+
+.page {
+  padding: 24px 28px;
+  max-width: 1180px;
+}
+.page-title {
+  font-size: 20px;
+  font-weight: 600;
+  margin: 0 0 4px;
+}
+.page-desc {
+  color: var(--wb-muted);
+  margin: 0 0 20px;
+}
